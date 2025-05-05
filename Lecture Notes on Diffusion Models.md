@@ -81,7 +81,6 @@ Instead, let's see if we can come up with an Evidence Lower Bound that *is tract
 
 ## ELBO Derivation 
 
-1.
 We want the marginal likelihood of our data point $x_0$ given a latent noise sequence $x_{1:T}​$.
 $$
 \log p(x_0)
@@ -125,14 +124,14 @@ $$
 $$
 
 Subsequently, we re-index and collect terms into: 
-1. Reconstruction
+1. **Reconstruction term**
    $$
    \mathbb{E}_{q(x_1\mid x_0)}\bigl[\log p_\theta(x_0\mid x_1)\bigr].
    $$
 This term assess to what degree our learned $p_{\theta}$ allows us to recover the original data $x_0$. 
 
 
-2. **Prior matching**: 
+2. **Prior matching term**: 
    $$
    -\mathbb{E}_{q(x_{T-1}\mid x_0)}\bigl[D_{\mathrm{KL}}(q(x_T\mid x_{T-1})\|p(x_T))\bigr].
    $$
@@ -149,20 +148,20 @@ In other words, it ensures that each reverse denoising step matches the correspo
 
 Hence,
 $$
-\boxed{
+
 \log p(x_0)\ge
 \underbrace{\mathbb{E}_{q(x_1\mid x_0)}[\log p_\theta(x_0\mid x_1)]}_{\text{reconstruction}}
 \;-\;
 \underbrace{\mathbb{E}_{q(x_{T-1}\mid x_0)}\bigl[D_{\mathrm{KL}}(q(x_T\mid x_{T-1})\|p(x_T))\bigr]}_{\text{prior matching}}
-\;-\;
-\sum_{t=1}^{T-1}
-\underbrace{\mathbb{E}_{q(x_{t-1},x_{t+1}\mid x_0)}\bigl[D_{\mathrm{KL}}(q(x_t\mid x_{t-1})\|p_\theta(x_t\mid x_{t+1}))\bigr]}_{\text{consistency}}
-}
+\;
 $$
+$$-\;
+\sum_{t=1}^{T-1}
+\underbrace{\mathbb{E}_{q(x_{t-1},x_{t+1}\mid x_0)}\bigl[D_{\mathrm{KL}}(q(x_t\mid x_{t-1})\|p_\theta(x_t\mid x_{t+1}))\bigr]}_{\text{denoising matching term}}$$
 
 We take the denoising matching term as our learning objective. 
 
-This is the **only** non-zero, parameterized term in our ELBO. **Minimizing it** forces the learned reverse kernels   $p_{\theta}(x_{t-1}|x_t)$ to match the true posteriors $q(x_{t-1}|x_t,x_0)$ at every timestep.
+This is the only non-zero, parameterized term in our ELBO. Minimizing it forces the learned reverse kernels   $p_{\theta}(x_{t-1}|x_t)$ to match the true posteriors $q(x_{t-1}|x_t,x_0)$ at every timestep.
 
 In fact, observe that $q(x_{t-1} | x_t,x_0)$ is Gaussian and can be expressed as:
 $$
@@ -204,13 +203,14 @@ $$p_\theta(x_{t-1}\mid x_t)$$
 are Gaussian, their KL divergence reduces to a simple squared‐difference between means:
 
 $$
-L_{t-1}
+\mathcal{L}_{t-1}
 \;=\;
 D_{KL}\bigl(q(x_{t-1}\mid x_t,x_0)\,\|\,p_\theta(x_{t-1}\mid x_t)\bigr)
-\;=\;
-\mathbb{E}_{q}\!\biggl[\frac{1}{2\sigma_t^2}\,\bigl\|\tilde\mu_t(x_t,x_0)\;-\;\mu_\theta(x_t,t)\bigr\|^2\biggr]
-\;+\;C.
+\;
 $$
+$$=\;
+\mathbb{E}_{q}\!\biggl[\frac{1}{2\sigma_t^2}\,\bigl\|\tilde\mu_t(x_t,x_0)\;-\;\mu_\theta(x_t,t)\bigr\|^2\biggr]
+\;+\;C$$
 Here, $\sigma_t^2$ is the (shared) variance of both Gaussians (often set to $\tilde\beta_t$).  
 The constant $C$ absorbs all terms independent of $\theta$.
 
@@ -254,7 +254,7 @@ such that we could then model $\tilde \mu_t$ as
 Finally, we can substitute this $\mu_\theta$ into the KL to obtain a mean‐squared error on the noise:
 
 $$
-L_{t-1}
+\mathcal{L}_{t-1}
 =\;\mathbb{E}_{x_0\sim q(x_0),\,\epsilon\sim\mathcal{N}(0,I)}\!\Biggl[
 \frac{\beta_t^2}{2\,\sigma_t^2\,(1-\beta_t)\,(1-\bar\alpha_t)}
 \bigl\|\epsilon \;-\;\epsilon_\theta(\underbrace{\sqrt{\bar\alpha_t}x_0+\sqrt{1-\bar\alpha_t}\,\epsilon}_{x_t},\,t)\bigr\|^2
@@ -264,7 +264,7 @@ $$
 
 In practice, the collected constants are often dropped from the training objective: 
 $$
-L_{t-1}
+\mathcal{L}_{t-1}
 =\;\mathbb{E}_{x_0\sim q(x_0),\,\epsilon\sim\mathcal{N}(0,I)}\!\Biggl[
 \bigl\|\epsilon \;-\;\epsilon_\theta(\underbrace{\sqrt{\bar\alpha_t}x_0+\sqrt{1-\bar\alpha_t}\,\epsilon}_{x_t},\,t)\bigr\|^2
 \Biggr]
@@ -311,10 +311,10 @@ Recall that $\bar{\alpha}_t$ is a product of noise schedule terms and controls h
 #### Step 1: Sample clean image
 
 $$
-\mathbf{x}_0 \sim q(\mathbf{x}_0)
+x_0 \sim q(x_0)
 $$
 
-- Sample a **clean image** $x_0$ from the training data distribution $q$.
+- Sample a clean image $x_0$ from the training data distribution $q$.
 - This is the starting point of the forward process.
 #### Step 2: Sample time step
 
@@ -322,7 +322,7 @@ $$
 t \sim U\{1, 2, \dots, T\}
 $$
 
-- Choose a **random time step** $t$ uniformly from all possible time steps $1$ to $T$.
+- Choose a random time step $t$ uniformly from all possible time steps $1$ to $T$.
 - This ensures the model learns to denoise at every possible stage of the forward process, from slightly noisy to very noisy.
 
 #### Step 3: Sample Gaussian noise
@@ -341,8 +341,8 @@ $$
 L(\theta) = \mathbb{E}_{t, x_0, \epsilon} \left[ \| \epsilon - \epsilon_\theta(x_t, t) \|^2 \right]
 $$
 
-- The model $\epsilon_\theta(x_t, t)$ is trained to **predict the noise** $\epsilon$ that was added to get from $x_0$ to $x_t$. 
-- This is a **mean squared error (MSE)** loss between the true noise and the predicted noise.
+- The model $\epsilon_\theta(x_t, t)$ is trained to predict the noise $\epsilon$ that was added to get from $x_0$ to $x_t$. 
+- This is a mean squared error (MSE) loss between the true noise and the predicted noise.
 - The optimizer (e.g., Adam) updates the model parameters $\theta$ accordingly.
 
 # Inference Sampling
@@ -354,7 +354,7 @@ During inference time, we seek to generate new data using our trained diffusion 
 We begin with a sample of pure Gaussian noise:
 
 $$
-\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})
+x_T \sim \mathcal{N}(0, \mathbf{I})
 $$
 
 - This is the most corrupted/noised version of the image — the starting point for sampling.
@@ -366,21 +366,21 @@ For $t=T, T-1, \ldots, 1$, repeat:
 
 1. **Noise Sampling**:
    $$ 
-   \mathbf{z} \sim \mathcal{N}(0, \mathbf{I}) \quad \text{if } t > 1, \quad \text{else } \mathbf{z} = 0
+   z \sim \mathcal{N}(0, I) \quad \text{if } t > 1, \quad \text{else } z = 0
    $$
  Interestingly, at every single time step we apply a fresh noise sample. This may seem odd, but the reason we do this is to make the generated outputs diverse. If we didn't do this, the generations would follow similar trajectories.
 
 2. **Reverse Step**:
    $$
-   \mathbf{x}_{t-1} = \frac{1}{\sqrt{\alpha_t}} \left( \mathbf{x}_t - \frac{1 - \alpha_t}{\sqrt{1 - \bar{\alpha}_t}} \, \epsilon_\theta(\mathbf{x}_t, t) \right) + \sigma_t \mathbf{z}
+   x_{t-1} = \frac{1}{\sqrt{\alpha_t}} \left( x_t - \frac{1 - \alpha_t}{\sqrt{1 - \bar{\alpha}_t}} \, \epsilon_\theta(x_t, t) \right) + \sigma_t z
    $$
 
-   - $\epsilon_\theta(\mathbf{x}_t, t)$: predicted noise component in $x_t$.
+   - $\epsilon_\theta(x_t, t)$: predicted noise component in $x_t$.
    - $\alpha_t$: forward noise schedule coefficient at timestep $t$, which is pre-determined.
    - $\bar{\alpha}_t$: cumulative product of $\alpha_s$ up to timestep $t$.
    - $\sigma_t$: predefined variance schedule controlling how much randomness is added at each step.
 
-Here, the firs term is simply subtracting off the predicted noise from the current sample, while the second term is introducing a small amount of stochasticity by adding a little noise back after denoising.
+Here, the first term is simply subtracting off the predicted noise from the current sample, while the second term is introducing a small amount of stochasticity by adding a little noise back after denoising.
 
 3. Output
 	At timestep $t=1$, we return $x_0$. 
@@ -460,7 +460,7 @@ $$
 $$
 This objective tries to learn a score function $s_\theta$ that approximates the score of the noisy distribution $p_t(x_t)$.
 
-Using **denoising score matching**, we can replace the unknown score with an expression involving the known conditional $q_t (x_t | x)$.
+Using denoising score matching, we can replace the unknown score with an expression involving the known conditional $q_t (x_t | x)$.
 $$
 \sum_{t=1}^T \lambda(t) \, \mathbb{E}_{x_t} \left[ \left\| s_\theta(x_t, t) - \nabla_{x_t} \log q_t(x_t \mid x) \right\|_2^2 \right]
 $$
@@ -494,20 +494,20 @@ $$
 $$
 Assuming the forward noise process:
 $$
-x_t = x + \sigma_t \boldsymbol{\epsilon}, \quad \boldsymbol{\epsilon} \sim \mathcal{N}(0, I)
+x_t = x + \sigma_t \epsilon, \quad \epsilon \sim \mathcal{N}(0, I)
 $$
 We substitute into the gradient:
 $$
 \begin{align*}
 \nabla_{x_t} \log q(x_t \mid x)
-&= -\frac{x + \sigma_t \boldsymbol{\epsilon} - x}{\sigma_t^2} \\
-&= -\frac{\sigma_t \boldsymbol{\epsilon}}{\sigma_t^2} \\
-&= -\frac{\boldsymbol{\epsilon}}{\sigma_t}
+&= -\frac{x + \sigma_t \epsilon - x}{\sigma_t^2} \\
+&= -\frac{\sigma_t \epsilon}{\sigma_t^2} \\
+&= -\frac{\epsilon}{\sigma_t}
 \end{align*}
 $$
 This shows that the score function is:
 $$
-s_\theta(x_t, t) = -\frac{\boldsymbol{\epsilon}_\theta(x_t, t)}{\sigma_t}
+s_\theta(x_t, t) = -\frac{\epsilon_\theta(x_t, t)}{\sigma_t}
 $$
 ### Reformulating the Loss
 
@@ -517,12 +517,12 @@ $$
 $$
 Substitute the score identity:
 $$
-s_\theta(x_t, t) = -\frac{\boldsymbol{\epsilon}_\theta(x_t, t)}{\sigma_t}, \quad \frac{x - x_t}{\sigma_t^2} = -\frac{\boldsymbol{\epsilon}}{\sigma_t}
+s_\theta(x_t, t) = -\frac{\epsilon_\theta(x_t, t)}{\sigma_t}, \quad \frac{x - x_t}{\sigma_t^2} = -\frac{\epsilon}{\sigma_t}
 $$
 The loss becomes:
 $$
-\lambda(t) \, \mathbb{E}_{x, t} \left[ \left\| \frac{\boldsymbol{\epsilon}_\theta(x_t, t)}{\sigma_t} - \frac{\boldsymbol{\epsilon}}{\sigma_t} \right\|_2^2 \right]
-= \frac{\lambda(t)}{\sigma_t^2} \, \mathbb{E}_{x, t} \left[ \left\| \boldsymbol{\epsilon}_\theta(x_t, t) - \boldsymbol{\epsilon} \right\|_2^2 \right]
+\lambda(t) \, \mathbb{E}_{x, t} \left[ \left\| \frac{\epsilon_\theta(x_t, t)}{\sigma_t} - \frac{\epsilon}{\sigma_t} \right\|_2^2 \right]
+= \frac{\lambda(t)}{\sigma_t^2} \, \mathbb{E}_{x, t} \left[ \left\| \epsilon_\theta(x_t, t) - \epsilon \right\|_2^2 \right]
 $$
 
 From this, we see that this loss function is the mean squared error loss used in DDPMs. We train the model to predict the noise using the ground truth noise as supervision.
@@ -534,27 +534,27 @@ So, DDPM training can be interpreted as a special case of denoising score matchi
 An incredibly useful feature of diffusion models is *control*. 
 
 Consider the following scenario: 
-We want to generate images **conditioned on a label** (e.g., "a cat"), but we may not have (image, label) pairs to train a conditional diffusion model.
+We want to generate images conditioned on a label (e.g., "a cat"), but we may not have (image, label) pairs to train a conditional diffusion model.
 
 Instead, we *do* have access to: 
-- A pretrained **unconditional diffusion model** $p_t(x_t)$
+- A pretrained unconditional diffusion model $p_t(x_t)$
 - A classifier $p(y|x_t)$ that tells us how likely the label $y$ is given a noisy image $x_t$. This is not *too* hard to obtain, but there may be some instabilities.
 
 We want to sample from $p_t(x_t \mid y)$, the distribution of images conditioned on label $y$.  
-We can't sample from this directly, but we can guide the sampling using the gradient of the log-probability (a **score function**):
+We can't sample from this directly, but we can guide the sampling using the gradient of the log-probability (a score function):
 $$
 \nabla_{x_t} \log p_t(x_t \mid y)$$
-Using **Bayes' rule**, we can decompose this into:
+Using Bayes' rule, we can decompose this into:
 $$
 \nabla_{x_t} \log p_t(x_t \mid y)
 = \nabla_{x_t} \log p_t(x_t)
 + \nabla_{x_t} \log p_t(y \mid x_t)
 $$
 Where:
-- $\nabla_{x_t} \log p_t(x_t)$: score function from the **unconditional diffusion model**.
-- $\nabla_{x_t} \log p_t(y \mid x_t)$: gradient from the **classifier** — tells you how to tweak $x_t$ to make it more likely to be classified as label $y$.
+- $\nabla_{x_t} \log p_t(x_t)$: score function from the unconditional diffusion model.
+- $\nabla_{x_t} \log p_t(y \mid x_t)$: gradient from the classifier — tells you how to tweak $x_t$ to make it more likely to be classified as label $y$.
 
-This trick allows us to **guide the diffusion process** toward samples that are consistent with a given label $y$, even without retraining the diffusion model.
+This trick allows us to guide the diffusion process toward samples that are consistent with a given label $y$, even without retraining the diffusion model.
 
 # Classifier-Free Guidance
 
@@ -599,32 +599,30 @@ With classifier-free guidance, we can simplify the model architecture and traini
 
 # Latent Diffusion Models (LDMs)
 
-Latent Diffusion Models (LDMs) are a class of generative models that apply diffusion processes in a **compressed latent space**, rather than directly on high-dimensional data such as images. This yields substantial computational benefits while preserving generative quality.
-
-## Motivation
+Latent Diffusion Models (LDMs) are a class of generative models that apply diffusion processes in a compressed latent space, rather than directly on high-dimensional data such as images. This yields substantial computational benefits while preserving generative quality.
 
 Traditional diffusion models operate directly on pixel-space data (e.g., 256x256 RGB images), which leads to high memory and compute requirements due to the dimensionality. Latent Diffusion Models mitigate this by:
-- Encoding images into a **lower-dimensional latent space** using an autoencoder
+- Encoding images into a lower-dimensional latent space using an autoencoder
 - Applying diffusion in that latent space
 - Decoding the denoised latent back into image space
 ## Architecture
 
 LDMs consist of three main components:
 ### 1. **Autoencoder (Encoder–Decoder Pair)**
-- **Encoder:** Compresses an input image $x$ into a latent representation $z = \mathcal{E}(x)$. 
-- **Decoder**: Reconstructs the image $\tilde{x}$ = $\mathcal{D}(z)$
+- Encoder: Compresses an input image $x$ into a latent representation $z = \mathcal{E}(x)$. 
+- Decoder: Reconstructs the image $\tilde{x}$ = $\mathcal{D}(z)$
 - The autoencoder is trained with a perceptual and pixel-wise reconstruction loss, ensuring high-quality reconstructions.
 ### 2. **Latent Diffusion Model**
 - A standard diffusion model (e.g., U-Net architecture) is applied in the latent space to learn the distribution $p(z)$.
 - Noise is added to the latent vector over $T$ steps and the model learns to reverse this process.
 ### 3. **Conditioning Mechanism (for Text-to-Image Tasks)**
-- Conditioning (e.g., on text prompts) is integrated using **cross-attention** layers between the latent diffusion U-Net and a text encoder (e.g., CLIP or OpenCLIP)
+- Conditioning (e.g., on text prompts) is integrated using cross-attention layers between the latent diffusion U-Net and a text encoder (e.g., CLIP or OpenCLIP)
 - This enables controllable generation from text prompts
 ### 4. **Discriminator**
 - In some variants, a discriminator is used during training for adversarial regularization to improve the sharpness and realism of reconstructions.
 ## **Stable Diffusion**
 
-Stable Diffusion (by Stability AI, LMU Munich, and Runway) is a prominent implementation of latent diffusion, designed for **text-to-image synthesis**. Key design details include:
+Stable Diffusion (by Stability AI, LMU Munich, and Runway) is a prominent implementation of latent diffusion, designed for text-to-image synthesis. Key design details include:
 
 - **Training Dataset**: LAION-5B (large-scale dataset of image-text pairs scraped from the web)
 - **Text Encoder**: CLIP ViT-L/14, trained to embed text prompts into conditioning vectors
