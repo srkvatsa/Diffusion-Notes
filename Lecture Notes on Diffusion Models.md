@@ -54,24 +54,23 @@ We model the reverse process as a Markov chain of Gaussians.
 **Final timestep distribution:**
 
 We assume the final noisy image is standard Gaussian:
-
 $$
-p(\mathbf{x}_T) = \mathcal{N}(\mathbf{x}_T; \mathbf{0}, \mathbf{I})
+p(x_T) = \mathcal{N}(x_T; 0, I)
 $$
 
 This serves as the starting point for generation. Now, we want our model to learn to denoise each timestep, until we are back at a good reconstruction of the original input data $x_0$. 
 Formally, this idea is captured by
 $$
-p_\theta(\mathbf{x}_{t-1} \mid \mathbf{x}_t) = \mathcal{N}(\mathbf{x}_{t-1}; \mu_\theta(\mathbf{x}_t, t), \sigma_t^2 \mathbf{I})
+p_\theta(x_{t-1} \mid x_t) = \mathcal{N}(x_{t-1}; \mu_\theta(x_t, t), \sigma_t^2 I)
 $$
 where
-- The mean $\mu_\theta(\mathbf{x}_t, t)$ is predicted by a neural network.
+- The mean $\mu_\theta(x_t, t)$ is predicted by a neural network.
 - The variance $\sigma_t^2$ is often fixed or learned, depending on the implementation.
 
 In other words, we are learning to model the conditional distribution of a cleaner image given a noisier one.
 The full generative model is a chain of these reverse steps:
 $$
-p_\theta(\mathbf{x}_{0:T}) = p(\mathbf{x}_T) \prod_{t=1}^T p_\theta(\mathbf{x}_{t-1} \mid \mathbf{x}_t)
+p_\theta(x_{0:T}) = p(x_T) \prod_{t=1}^T p_\theta(x_{t-1} \mid x_t)
 $$
 Of course, the challenge lies in learning $p_{\theta}$, and learning it *well*. 
 # Diffusion Learning Objective
