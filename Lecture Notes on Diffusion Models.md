@@ -338,7 +338,7 @@ $$
 As we previously derived, our objective is
 
 $$
-L(\theta) = \mathbb{E}_{t, x_0, \epsilon} \left[ \| \epsilon - \epsilon_\theta(x_t, t) \|^2 \right]
+\mathcal{L}(\theta) = \mathbb{E}_{t, x_0, \epsilon} \left[ \| \epsilon - \epsilon_\theta(x_t, t) \|^2 \right]
 $$
 
 - The model $\epsilon_\theta(x_t, t)$ is trained to predict the noise $\epsilon$ that was added to get from $x_0$ to $x_t$. 
@@ -633,17 +633,16 @@ Stable Diffusion (by Stability AI, LMU Munich, and Runway) is a prominent implem
 - **Classifier-Free Guidance**: Used during inference to interpolate between conditional and unconditional predictions for stronger text-image alignment
 
 # Summary
-Diffusion models have emerged as a powerful class of generative models, capable of producing high-quality samples across a variety of domains. These models were introduced from two complementary perspectives: the **variational perspective**, which frames diffusion as a latent variable model trained using variational inference, and the **score-based generative modeling** perspective, which focuses on estimating the gradient of the data distribution.
+Diffusion models have emerged as a powerful class of generative models, capable of producing high-quality samples across a variety of domains. These models were introduced from two complementary perspectives: the variational perspective, which frames diffusion as a latent variable model trained using variational inference, and the score-based generative modeling perspective, which focuses on estimating the gradient of the data distribution.
 
-A key strength of diffusion models is their flexibility in **conditional generation**. They can be conditioned on various modalities, such as text or images, to produce outputs that align with a desired specification—enabling applications like text-to-image synthesis, image inpainting, or super-resolution.
+A key strength of diffusion models is their flexibility in conditional generation. They can be conditioned on various modalities, such as text or images, to produce outputs that align with a desired specification—enabling applications like text-to-image synthesis, image inpainting, or super-resolution.
 
-Modern implementations, such as **Stable Diffusion**, further enhance efficiency by performing the generative process in the **latent space** of a pretrained autoencoder. This strategy significantly reduces computational cost while maintaining high fidelity, making diffusion models practical for large-scale deployment.
+Modern implementations, such as Stable Diffusion, further enhance efficiency by performing the generative process in the latent space of a pretrained autoencoder. This strategy significantly reduces computational cost while maintaining high fidelity, making diffusion models practical for large-scale deployment.
 # Bonus: Discrete Diffusion 
 
 
-## LLaDA (Large Language Diffusion with mAsking)
+ LLaDA (Large Language Diffusion with mAsking) is a diffusion model for language generation, introduced by Nie et al. (2025).
 
-- Nie et al. (2025) - is the first paper to scale up discrete diffusion models to 8 billion parameters
 
 ## Generative modeling principle
 
