@@ -4,11 +4,11 @@ Written by Srivatsa Kundurthy & Alex Kozik, based on Cornell CS 4782 Lecture on 
 
 What should be clear at this point is that generative modeling is a fundamentally challenging task.
 
-**Generative Adversarial Networks (GANs)** train a generator to synthesize data that fools a discriminator trained to distinguish between real and fake samples. This adversarial setup has led to **remarkable sample quality**, especially in high-resolution image generation. However, GANs come with their own challenges: **mode collapse**, **unstable training**, and the lack of an **explicit density model** make them difficult to train and evaluate probabilistically.
+Generative Adversarial Networks (GANs) train a generator to synthesize data that fools a discriminator trained to distinguish between real and fake samples. This adversarial setup has led to remarkable sample quality, especially in high-resolution image generation. However, GANs come with their own challenges: mode collapse, unstable training, and the lack of an explicit density model make them difficult to train and evaluate probabilistically.
 
 With Variational Autoencoders (VAEs), we approached this challenge as an encoder-decoder problem: mapping an input $x$ to a latent representation $z = q_{\phi}(x)$ using a learned encoder, and then reconstructing the input via $x \approx p_{\theta}(z)$. While VAEs offer fast inference, they often struggle with generating high-quality, detailed samples. 
 
-So we’re left with a tradeoff:
+So we're left with a tradeoff:
 - VAEs: stable training, but blurry generations.
 - GANs: sharp images, but unstable and non-probabilistic.
 
@@ -27,11 +27,11 @@ The diffusion models we study consist of two parts, a *forward diffusion process
 Each process occurs over several time steps. 
 ## Forward Process
 
-The forward process $q$ defines a Markov chain that adds Gaussian noise to the original data $\mathbf{x}_0$ over $T$ steps to get increasingly noisy versions $\mathbf{x}_1, \mathbf{x}_2, \ldots, \mathbf{x}_T$, until such a point that $x_T \approx N(0,I)$. 
+The forward process $q$ defines a Markov chain that adds Gaussian noise to the original data $x_0$ over $T$ steps to get increasingly noisy versions $x_1, x_2, \ldots, x_T$, until such a point that $x_T \approx N(0,I)$. 
 
 While we can iteratively add noise $\epsilon \sim N(0,I)$ to each $x_t$, it is advantageous to imagine a closed form. That is:
 
-$$q_{(x_t | x_0) = N(\sqrt{\bar{\alpha_t}}x_0, (1-\bar{\alpha}_t)I)}$$
+$$q(x_t | x_0) = \mathcal{N}(\sqrt{\bar{\alpha_t}}x_0, (1-\bar{\alpha}_t)I)$$
 We can compute this as 
 $$x_t = \sqrt{\bar{\alpha_t}}x_0 + (1-\bar{\alpha}_t)\epsilon,\epsilon \sim N(0,I) $$
 where $\bar{\alpha}_t = \prod_{s=1}^t \alpha_s$, with $\alpha_t \in (0,1)$ defines the noise schedule.
@@ -226,7 +226,7 @@ $$
 \bar\alpha_t \;=\;\prod_{s=1}^t \alpha_s.
 $$
 
-By Bayes’ rule on two Gaussians, the true posterior  
+By Bayes' rule on two Gaussians, the true posterior  
 $$q(x_{t-1}\mid x_t,x_0)$$  
 is also Gaussian with
 $$
@@ -411,9 +411,9 @@ $$\max _ \theta \sum_{i = 1} ^ N \log p _ \theta(x_i)$$
 **Problem:** The normalization constant $Z _ \theta$ is intractible, since we usually cannot compute it. 
 
 **Solution:** We will approximate the score function, which is given as follows:
-$$s_\theta(\mathbf{x}) = \nabla_{\mathbf{x}} \log p_\theta(\mathbf{x}) = - \nabla_{\mathbf{x}} f_\theta(\mathbf{x}) - \nabla_{\mathbf{x}} \log Z_\theta = - \nabla_{\mathbf{x}} f_\theta(\mathbf{x})$$
+$$s_\theta(x) = \nabla_{x} \log p_\theta(x) = - \nabla_{x} f_\theta(x) - \nabla_{x} \log Z_\theta = - \nabla_{x} f_\theta(x)$$
 Therefore,
-$$s _ \theta(\mathbf{x}) = - \nabla _ \mathbf{x} f _ \theta(\mathbf{x})$$
+$$s _ \theta(x) = - \nabla _ x f _ \theta(x)$$
 
 Then, we can use gradient ascent to view areas of high density in the PDF and draw from the distribution.
 
@@ -422,7 +422,7 @@ We train a model $s _ \theta$ that approximates the real score function of the d
 **Score function:**
 
 Let $p _ \theta$ be a probability density function. Then, the score function is defined as
-$$s_ \theta (\mathbf{x}) = \nabla _ \mathbf{x} \log p(\mathbf{x})$$
+$$s_ \theta (x) = \nabla _ x \log p(x)$$
 - This points in the direction where the probability density increases the fastest.
 
 ## Score-based models
@@ -430,10 +430,10 @@ $$s_ \theta (\mathbf{x}) = \nabla _ \mathbf{x} \log p(\mathbf{x})$$
 Langevin dynamics provide a way to sample from a probability distribution, even when it is unnormalized. The sampling process is defined by the following update rule:
 
 $$
-\mathbf{x}_{t + 1} \gets \mathbf{x}_i + \epsilon \nabla_{\mathbf{x}} \log p(\mathbf{x}) + \sqrt{2\epsilon} \, \mathbf{z}_i, \quad i \in \{0, 1, 2, \ldots, K\}
+x_{t + 1} \gets x_i + \epsilon \nabla_{x} \log p(x) + \sqrt{2\epsilon} \, z_i, \quad i \in \{0, 1, 2, \ldots, K\}
 $$
 
-In this equation, each $\mathbf{x}_i$ represents a sample from the target distribution. The parameter $\epsilon$ is a step size that determines how large each update is, effectively controlling the speed of exploration. The term $\mathbf{z}_i$ is drawn from a standard Gaussian distribution $\mathcal{N}(0, 1)$ and adds randomness to the updates, which helps prevent the sampler from getting stuck in local modes of the distribution.
+In this equation, each $x_i$ represents a sample from the target distribution. The parameter $\epsilon$ is a step size that determines how large each update is, effectively controlling the speed of exploration. The term $z_i$ is drawn from a standard Gaussian distribution $\mathcal{N}(0, 1)$ and adds randomness to the updates, which helps prevent the sampler from getting stuck in local modes of the distribution.
 
 ## Score matching
 
@@ -441,13 +441,13 @@ In this equation, each $\mathbf{x}_i$ represents a sample from the target distri
 
 The score function is the gradient of the log-probability with respect to the input:
 $$
-\nabla_{\mathbf{x}} \log p(\mathbf{x})
+\nabla_{x} \log p(x)
 $$
 In score matching, we define a loss function that penalizes the difference between a model's predicted score and the true score:
 $$
-\mathbb{E}_{\mathbf{x}} \left[ \left\| s_\theta(\mathbf{x}) - \nabla_{\mathbf{x}} \log p(\mathbf{x}) \right\|_2^2 \right]
+\mathbb{E}_{x} \left[ \left\| s_\theta(x) - \nabla_{x} \log p(x) \right\|_2^2 \right]
 $$
-However, the true score $\nabla_{\mathbf{x}} \log p(\mathbf{x})$ is unknown, so direct minimization of this loss is not possible. Fortunately, score matching provides an alternative way to compute this loss without needing the true score function directly, using integration by parts.
+However, the true score $\nabla_{x} \log p(x)$ is unknown, so direct minimization of this loss is not possible. Fortunately, score matching provides an alternative way to compute this loss without needing the true score function directly, using integration by parts.
 
 ## Training 
 
@@ -455,73 +455,73 @@ However, the true score $\nabla_{\mathbf{x}} \log p(\mathbf{x})$ is unknown, so 
 
 We begin with the score matching objective:
 $$
-\sum_{t=1}^T \lambda(t) \, \mathbb{E}_{\mathbf{x}_t} \left[ \left\| s_\theta(\mathbf{x}_t, t) - \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t) \right\|_2^2 \right]
+\sum_{t=1}^T \lambda(t) \, \mathbb{E}_{x_t} \left[ \left\| s_\theta(x_t, t) - \nabla_{x_t} \log p_t(x_t) \right\|_2^2 \right]
 $$
-This objective tries to learn a score function $s_\theta$ that approximates the score of the noisy distribution $p_t(\mathbf{x}_t)$.
+This objective tries to learn a score function $s_\theta$ that approximates the score of the noisy distribution $p_t(x_t)$.
 
-Using **denoising score matching**, we can replace the unknown score with an expression involving the known conditional $q_t (\mathbf{x}_t | \mathbf{x})$.
+Using **denoising score matching**, we can replace the unknown score with an expression involving the known conditional $q_t (x_t | x)$.
 $$
-\sum_{t=1}^T \lambda(t) \, \mathbb{E}_{\mathbf{x}_t} \left[ \left\| s_\theta(\mathbf{x}_t, t) - \nabla_{\mathbf{x}_t} \log q_t(\mathbf{x}_t \mid \mathbf{x}) \right\|_2^2 \right]
+\sum_{t=1}^T \lambda(t) \, \mathbb{E}_{x_t} \left[ \left\| s_\theta(x_t, t) - \nabla_{x_t} \log q_t(x_t \mid x) \right\|_2^2 \right]
 $$
 
 If
 $$
-\mathbf{x}_t \sim \mathcal{N}(\mathbf{x}, \sigma_t^2 I)
+x_t \sim \mathcal{N}(x, \sigma_t^2 I)
 $$
 then
 $$
-q_t(\mathbf{x}_t \mid \mathbf{x})
+q_t(x_t \mid x)
 $$
-Note that $\mathbf{x}_t \sim \mathcal{N}(\mathbf{x}, \sigma ^ 2_t I)$, therefore, $q_t (\mathbf{x}_t | \mathbf{x})$ is Gaussian. Therefore, we have:
+Note that $x_t \sim \mathcal{N}(x, \sigma ^ 2_t I)$, therefore, $q_t (x_t | x)$ is Gaussian. Therefore, we have:
 $$
-\nabla_{\mathbf{x}_t} \log q_t(\mathbf{x}_t \mid \mathbf{x}) = -\frac{\mathbf{x}_t - \mathbf{x}}{\sigma_t^2}
+\nabla_{x_t} \log q_t(x_t \mid x) = -\frac{x_t - x}{\sigma_t^2}
 $$
 Substituting this into the loss gives:
 $$
-\sum_{t=1}^T \lambda(t) \, \mathbb{E}_{\mathbf{x}_t} \left[ \left\| s_\theta(\mathbf{x}_t, t) + \frac{\mathbf{x}_t - \mathbf{x}}{\sigma_t^2} \right\|_2^2 \right]
+\sum_{t=1}^T \lambda(t) \, \mathbb{E}_{x_t} \left[ \left\| s_\theta(x_t, t) + \frac{x_t - x}{\sigma_t^2} \right\|_2^2 \right]
 $$
 
 which is rewritten as:
 $$
-\sum_{t=1}^T \lambda(t) \, \mathbb{E}_{\mathbf{x}_t} \left[ \left\| s_\theta(\mathbf{x}_t, t) - \frac{\mathbf{x} - \mathbf{x}_t}{\sigma_t^2} \right\|_2^2 \right]
+\sum_{t=1}^T \lambda(t) \, \mathbb{E}_{x_t} \left[ \left\| s_\theta(x_t, t) - \frac{x - x_t}{\sigma_t^2} \right\|_2^2 \right]
 $$
 ## Connecting Denoising Score Matching to DDPMs
 
 We know that:
 $$
-\nabla_{\mathbf{x}_t} \log q(\mathbf{x}_t \mid \mathbf{x}) = -\frac{\mathbf{x}_t - \mathbf{x}}{\sigma_t^2}
+\nabla_{x_t} \log q(x_t \mid x) = -\frac{x_t - x}{\sigma_t^2}
 $$
 Assuming the forward noise process:
 $$
-\mathbf{x}_t = \mathbf{x} + \sigma_t \boldsymbol{\epsilon}, \quad \boldsymbol{\epsilon} \sim \mathcal{N}(0, I)
+x_t = x + \sigma_t \boldsymbol{\epsilon}, \quad \boldsymbol{\epsilon} \sim \mathcal{N}(0, I)
 $$
 We substitute into the gradient:
 $$
 \begin{align*}
-\nabla_{\mathbf{x}_t} \log q(\mathbf{x}_t \mid \mathbf{x})
-&= -\frac{\mathbf{x} + \sigma_t \boldsymbol{\epsilon} - \mathbf{x}}{\sigma_t^2} \\
+\nabla_{x_t} \log q(x_t \mid x)
+&= -\frac{x + \sigma_t \boldsymbol{\epsilon} - x}{\sigma_t^2} \\
 &= -\frac{\sigma_t \boldsymbol{\epsilon}}{\sigma_t^2} \\
 &= -\frac{\boldsymbol{\epsilon}}{\sigma_t}
 \end{align*}
 $$
 This shows that the score function is:
 $$
-s_\theta(\mathbf{x}_t, t) = -\frac{\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\sigma_t}
+s_\theta(x_t, t) = -\frac{\boldsymbol{\epsilon}_\theta(x_t, t)}{\sigma_t}
 $$
 ### Reformulating the Loss
 
 Starting from the denoising score matching loss:
 $$
-\lambda(t) \, \mathbb{E}_{\mathbf{x}, t} \left[ \left\| s_\theta(\mathbf{x}_t, t) - \frac{\mathbf{x} - \mathbf{x}_t}{\sigma_t^2} \right\|_2^2 \right]
+\lambda(t) \, \mathbb{E}_{x, t} \left[ \left\| s_\theta(x_t, t) - \frac{x - x_t}{\sigma_t^2} \right\|_2^2 \right]
 $$
 Substitute the score identity:
 $$
-s_\theta(\mathbf{x}_t, t) = -\frac{\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\sigma_t}, \quad \frac{\mathbf{x} - \mathbf{x}_t}{\sigma_t^2} = -\frac{\boldsymbol{\epsilon}}{\sigma_t}
+s_\theta(x_t, t) = -\frac{\boldsymbol{\epsilon}_\theta(x_t, t)}{\sigma_t}, \quad \frac{x - x_t}{\sigma_t^2} = -\frac{\boldsymbol{\epsilon}}{\sigma_t}
 $$
 The loss becomes:
 $$
-\lambda(t) \, \mathbb{E}_{\mathbf{x}, t} \left[ \left\| \frac{\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\sigma_t} - \frac{\boldsymbol{\epsilon}}{\sigma_t} \right\|_2^2 \right]
-= \frac{\lambda(t)}{\sigma_t^2} \, \mathbb{E}_{\mathbf{x}, t} \left[ \left\| \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t) - \boldsymbol{\epsilon} \right\|_2^2 \right]
+\lambda(t) \, \mathbb{E}_{x, t} \left[ \left\| \frac{\boldsymbol{\epsilon}_\theta(x_t, t)}{\sigma_t} - \frac{\boldsymbol{\epsilon}}{\sigma_t} \right\|_2^2 \right]
+= \frac{\lambda(t)}{\sigma_t^2} \, \mathbb{E}_{x, t} \left[ \left\| \boldsymbol{\epsilon}_\theta(x_t, t) - \boldsymbol{\epsilon} \right\|_2^2 \right]
 $$
 
 From this, we see that this loss function is the mean squared error loss used in DDPMs. We train the model to predict the noise using the ground truth noise as supervision.
@@ -533,25 +533,25 @@ So, DDPM training can be interpreted as a special case of denoising score matchi
 An incredibly useful feature of diffusion models is *control*. 
 
 Consider the following scenario: 
-We want to generate images **conditioned on a label** (e.g., “a cat”), but we may not have (image, label) pairs to train a conditional diffusion model.
+We want to generate images **conditioned on a label** (e.g., "a cat"), but we may not have (image, label) pairs to train a conditional diffusion model.
 
 Instead, we *do* have access to: 
 - A pretrained **unconditional diffusion model** $p_t(x_t)$
 - A classifier $p(y|x_t)$ that tells us how likely the label $y$ is given a noisy image $x_t$. This is not *too* hard to obtain, but there may be some instabilities.
 
-We want to sample from $p_t(\mathbf{x}_t \mid y)$, the distribution of images conditioned on label $y$.  
-We can’t sample from this directly, but we can guide the sampling using the gradient of the log-probability (a **score function**):
+We want to sample from $p_t(x_t \mid y)$, the distribution of images conditioned on label $y$.  
+We can't sample from this directly, but we can guide the sampling using the gradient of the log-probability (a **score function**):
 $$
-\nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t \mid y)$$
-Using **Bayes’ rule**, we can decompose this into:
+\nabla_{x_t} \log p_t(x_t \mid y)$$
+Using **Bayes' rule**, we can decompose this into:
 $$
-\nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t \mid y)
-= \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)
-+ \nabla_{\mathbf{x}_t} \log p_t(y \mid \mathbf{x}_t)
+\nabla_{x_t} \log p_t(x_t \mid y)
+= \nabla_{x_t} \log p_t(x_t)
++ \nabla_{x_t} \log p_t(y \mid x_t)
 $$
 Where:
-- $\nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)$: score function from the **unconditional diffusion model**.
-- $\nabla_{\mathbf{x}_t} \log p_t(y \mid \mathbf{x}_t)$: gradient from the **classifier** — tells you how to tweak $\mathbf{x}_t$ to make it more likely to be classified as label $y$.
+- $\nabla_{x_t} \log p_t(x_t)$: score function from the **unconditional diffusion model**.
+- $\nabla_{x_t} \log p_t(y \mid x_t)$: gradient from the **classifier** — tells you how to tweak $x_t$ to make it more likely to be classified as label $y$.
 
 This trick allows us to **guide the diffusion process** toward samples that are consistent with a given label $y$, even without retraining the diffusion model.
 
@@ -573,23 +573,23 @@ Traditional classifier guidance requires a separately trained classifier to guid
 At inference time, the model performs conditional generation by modifying the target distribution as follows:
 
 $$
-\log \tilde{p}_t(\mathbf{x}_t \mid y) \propto \log p_t(\mathbf{x}_t \mid y) + w \log p_t(y \mid \mathbf{x}_t)
+\log \tilde{p}_t(x_t \mid y) \propto \log p_t(x_t \mid y) + w \log p_t(y \mid x_t)
 $$
 
 This modification results in an adjusted sampling gradient:
 
 $$
-\nabla_{\mathbf{x}_t} \log \tilde{p}_t(\mathbf{x}_t \mid y)
-= \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)
-+ w \left( \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t \mid y)
-- \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t) \right)
+\nabla_{x_t} \log \tilde{p}_t(x_t \mid y)
+= \nabla_{x_t} \log p_t(x_t)
++ w \left( \nabla_{x_t} \log p_t(x_t \mid y)
+- \nabla_{x_t} \log p_t(x_t) \right)
 $$
 
 Simplifying:
 
 $$
-= (1 - w) \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)
-+ w \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t \mid y)
+= (1 - w) \nabla_{x_t} \log p_t(x_t)
++ w \nabla_{x_t} \log p_t(x_t \mid y)
 $$
 
 This formulation interpolates between the unconditional and conditional scores, with $w \geq 0$ serving as the guidance scale.
@@ -673,13 +673,13 @@ $$
 
 
 Since each token is masked independently, we have that
-$$q_{t | 0}q(\mathbf{x}_t | \mathbf{x}_0) = \prod_{i = 1} ^ L q_{t | 0}(\mathbf{x}_t ^ i | \mathbf{x}_0 ^ i)$$
+$$q_{t | 0}q(x_t | x_0) = \prod_{i = 1} ^ L q_{t | 0}(x_t ^ i | x_0 ^ i)$$
 ## Denoising Text
 
 The key idea when denoising text is to optimize the likelihood of the training data. In diffusion models, we don't have access to the likelihood. So, instead we optimize the likelihood lower-bound (ELBO).
 
 $$
-\mathbb{E}_{p_{\text{data}}(\mathbf{x}_0)}[\log p_\theta(\mathbf{x}_0)] \leq - \mathbb{E}_{t, \mathbf{x}_0, \mathbf{x}_t} \left[ \frac{1}{t} \sum_{i=1}^L \mathbb{1}\{\mathbf{x}_t^i = \text{M}\} \log p_\theta(\mathbf{x}_0^i \mid \mathbf{x}_t) \right]
+\mathbb{E}_{p_{\text{data}}(x_0)}[\log p_\theta(x_0)] \leq - \mathbb{E}_{t, x_0, x_t} \left[ \frac{1}{t} \sum_{i=1}^L \mathbb{1}\{x_t^i = \text{M}\} \log p_\theta(x_0^i \mid x_t) \right]
 $$
 For masked diffusion models, the ELBO has a very intuitive form:
 - Given a partially masked sequence, the model predicts all marked tokens simultaneously
@@ -689,11 +689,11 @@ For masked diffusion models, the ELBO has a very intuitive form:
 
 The key idea is to predict the original text, then add back "noise".
 
-Given a partially/fully masked sequence $\mathbf{x}_t$, we want to generate $\mathbf{x}_s$.
+Given a partially/fully masked sequence $x_t$, we want to generate $x_s$.
 1. Run the discrete diffusion model to simultaneously predict all of the masked tokens
 2. For each of the masked tokens, remark them with probability $\frac{s}{t}$.
 
-Repeat this process until you generate $\mathbf{x}_0$, the unmasked text.
+Repeat this process until you generate $x_0$, the unmasked text.
 
 ## Implementation Details: Inference
 
