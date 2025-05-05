@@ -1,5 +1,6 @@
-Written by Srivatsa Kundurthy & Alex Kozik, based on Cornell CS 4782 Lecture on Diffusion Models II. 
+# Lecture Notes on Diffusion Models
 
+Written by Srivatsa Kundurthy & Alex Kozik, based on Cornell CS 4782 Lecture on Diffusion Models II. 
 # Recap: Generative Models
 
 What should be clear at this point is that generative modeling is a fundamentally challenging task.
