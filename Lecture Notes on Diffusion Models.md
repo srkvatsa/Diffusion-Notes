@@ -1,4 +1,4 @@
-[[4782 Guide + Topics]]
+Written by Srivatsa Kundurthy & Alex Kozik, based on Cornell CS 4782 Lecture on Diffusion Models II. 
 
 # Recap: Generative Models
 
@@ -25,7 +25,6 @@ The diffusion models we study consist of two parts, a *forward diffusion process
 - The reverse denoising process learns to undo the noise at each step to reconstruct data.
 
 Each process occurs over several time steps. 
-
 ## Forward Process
 
 The forward process $q$ defines a Markov chain that adds Gaussian noise to the original data $\mathbf{x}_0$ over $T$ steps to get increasingly noisy versions $\mathbf{x}_1, \mathbf{x}_2, \ldots, \mathbf{x}_T$, until such a point that $x_T \approx N(0,I)$. 
@@ -332,7 +331,7 @@ $$
 $$
 
 - Sample Gaussian noise to be added to the image.
-- This noise is used in the forward process to get $x_t$, and later used to compute the loss by comparing it to the model's prediction.
+- This noise is used in the forward process to get $x_t$ using the "one-step" formula and later used to compute the loss by comparing it to the model's prediction.
 #### Step 4: Optimizer step on loss
 
 As we previously derived, our objective is
@@ -341,8 +340,372 @@ $$
 L(\theta) = \mathbb{E}_{t, x_0, \epsilon} \left[ \| \epsilon - \epsilon_\theta(x_t, t) \|^2 \right]
 $$
 
-- The model $\epsilon_\theta(x_t, t)$ is trained to **predict the noise** $\epsilon$ that was added to get from $x_0$ to $x_t$.
+- The model $\epsilon_\theta(x_t, t)$ is trained to **predict the noise** $\epsilon$ that was added to get from $x_0$ to $x_t$. 
 - This is a **mean squared error (MSE)** loss between the true noise and the predicted noise.
 - The optimizer (e.g., Adam) updates the model parameters $\theta$ accordingly.
 
+# Inference Sampling
 
+During inference time, we seek to generate new data using our trained diffusion model. We start with pure noise and iteratively denoise it using our $\epsilon_{\theta}$ model to recover a coherent image.
+
+## Initialization
+
+We begin with a sample of pure Gaussian noise:
+
+$$
+\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})
+$$
+
+- This is the most corrupted/noised version of the image — the starting point for sampling.
+- Observe that we start at final time step $T$ since inference is done over the reverse process, attempting to recover some $x_0$.
+
+## Iterative Denoising Process
+
+For $t=T, T-1, \ldots, 1$, repeat:
+
+1. **Noise Sampling**:
+   $$ 
+   \mathbf{z} \sim \mathcal{N}(0, \mathbf{I}) \quad \text{if } t > 1, \quad \text{else } \mathbf{z} = 0
+   $$
+ Interestingly, at every single time step we apply a fresh noise sample. This may seem odd, but the reason we do this is to make the generated outputs diverse. If we didn't do this, the generations would follow similar trajectories.
+
+2. **Reverse Step**:
+   $$
+   \mathbf{x}_{t-1} = \frac{1}{\sqrt{\alpha_t}} \left( \mathbf{x}_t - \frac{1 - \alpha_t}{\sqrt{1 - \bar{\alpha}_t}} \, \epsilon_\theta(\mathbf{x}_t, t) \right) + \sigma_t \mathbf{z}
+   $$
+
+   - $\epsilon_\theta(\mathbf{x}_t, t)$: predicted noise component in $x_t$.
+   - $\alpha_t$: forward noise schedule coefficient at timestep $t$, which is pre-determined.
+   - $\bar{\alpha}_t$: cumulative product of $\alpha_s$ up to timestep $t$.
+   - $\sigma_t$: predefined variance schedule controlling how much randomness is added at each step.
+
+Here, the firs term is simply subtracting off the predicted noise from the current sample, while the second term is introducing a small amount of stochasticity by adding a little noise back after denoising.
+
+3. Output
+	At timestep $t=1$, we return $x_0$. 
+
+
+# Comparing Generative Models
+
+While diffusion models have excellent mode coverage and very high quality samples, they are quite slow during execution since we have several steps of denoising, each of which is a full pass through the learned network.
+
+On the other hand, GANs have quick sampling and high-quality outputs, but suffer from mode collapse.
+
+And finally, VAEs share quick sampling with GANs and mode coverage with Diffusion models, but struggle with low-quality outputs.
+
+All three of the generative models we learned make tradeoffs. But as of now, research efforts have centered around diffusion models because the two qualities that they promise are very desirable, and we are willing to deal with slow execution.
+
+# Alternate Perspective on Diffusion Models: Score-Based Models
+
+## Background
+
+We want to model the probability density function as follows:
+$$p_\theta(x) = \frac{e ^ {-f_\theta(x)}}{Z_\theta}$$
+Where $Z _ \theta > 0$ is a normalizing constant such that
+$$\int_x p _ \theta(x) dx = 1$$
+
+This will allow us to understand the distribution of images $x$ and draw from it.
+
+We want to maximize the log-likelihood of the data, which gives us the following objective:
+$$\max _ \theta \sum_{i = 1} ^ N \log p _ \theta(x_i)$$
+**Problem:** The normalization constant $Z _ \theta$ is intractible, since we usually cannot compute it. 
+
+**Solution:** We will approximate the score function, which is given as follows:
+$$s_\theta(\mathbf{x}) = \nabla_{\mathbf{x}} \log p_\theta(\mathbf{x}) = - \nabla_{\mathbf{x}} f_\theta(\mathbf{x}) - \nabla_{\mathbf{x}} \log Z_\theta = - \nabla_{\mathbf{x}} f_\theta(\mathbf{x})$$
+Therefore,
+$$s _ \theta(\mathbf{x}) = - \nabla _ \mathbf{x} f _ \theta(\mathbf{x})$$
+
+Then, we can use gradient ascent to view areas of high density in the PDF and draw from the distribution.
+
+We train a model $s _ \theta$ that approximates the real score function of the distribution.
+
+**Score function:**
+
+Let $p _ \theta$ be a probability density function. Then, the score function is defined as
+$$s_ \theta (\mathbf{x}) = \nabla _ \mathbf{x} \log p(\mathbf{x})$$
+- This points in the direction where the probability density increases the fastest.
+
+## Score-based models
+
+Langevin dynamics provide a way to sample from a probability distribution, even when it is unnormalized. The sampling process is defined by the following update rule:
+
+$$
+\mathbf{x}_{t + 1} \gets \mathbf{x}_i + \epsilon \nabla_{\mathbf{x}} \log p(\mathbf{x}) + \sqrt{2\epsilon} \, \mathbf{z}_i, \quad i \in \{0, 1, 2, \ldots, K\}
+$$
+
+In this equation, each $\mathbf{x}_i$ represents a sample from the target distribution. The parameter $\epsilon$ is a step size that determines how large each update is, effectively controlling the speed of exploration. The term $\mathbf{z}_i$ is drawn from a standard Gaussian distribution $\mathcal{N}(0, 1)$ and adds randomness to the updates, which helps prevent the sampler from getting stuck in local modes of the distribution.
+
+## Score matching
+
+**Score matching** is a method used to train models to match the *score function* of a probability distribution without needing access to the partition function (normalizing constant), which is often intractable.
+
+The score function is the gradient of the log-probability with respect to the input:
+$$
+\nabla_{\mathbf{x}} \log p(\mathbf{x})
+$$
+In score matching, we define a loss function that penalizes the difference between a model's predicted score and the true score:
+$$
+\mathbb{E}_{\mathbf{x}} \left[ \left\| s_\theta(\mathbf{x}) - \nabla_{\mathbf{x}} \log p(\mathbf{x}) \right\|_2^2 \right]
+$$
+However, the true score $\nabla_{\mathbf{x}} \log p(\mathbf{x})$ is unknown, so direct minimization of this loss is not possible. Fortunately, score matching provides an alternative way to compute this loss without needing the true score function directly, using integration by parts.
+
+## Training 
+
+### Denoising Score Matching and Training Objective
+
+We begin with the score matching objective:
+$$
+\sum_{t=1}^T \lambda(t) \, \mathbb{E}_{\mathbf{x}_t} \left[ \left\| s_\theta(\mathbf{x}_t, t) - \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t) \right\|_2^2 \right]
+$$
+This objective tries to learn a score function $s_\theta$ that approximates the score of the noisy distribution $p_t(\mathbf{x}_t)$.
+
+Using **denoising score matching**, we can replace the unknown score with an expression involving the known conditional $q_t (\mathbf{x}_t | \mathbf{x})$.
+$$
+\sum_{t=1}^T \lambda(t) \, \mathbb{E}_{\mathbf{x}_t} \left[ \left\| s_\theta(\mathbf{x}_t, t) - \nabla_{\mathbf{x}_t} \log q_t(\mathbf{x}_t \mid \mathbf{x}) \right\|_2^2 \right]
+$$
+
+If
+$$
+\mathbf{x}_t \sim \mathcal{N}(\mathbf{x}, \sigma_t^2 I)
+$$
+then
+$$
+q_t(\mathbf{x}_t \mid \mathbf{x})
+$$
+Note that $\mathbf{x}_t \sim \mathcal{N}(\mathbf{x}, \sigma ^ 2_t I)$, therefore, $q_t (\mathbf{x}_t | \mathbf{x})$ is Gaussian. Therefore, we have:
+$$
+\nabla_{\mathbf{x}_t} \log q_t(\mathbf{x}_t \mid \mathbf{x}) = -\frac{\mathbf{x}_t - \mathbf{x}}{\sigma_t^2}
+$$
+Substituting this into the loss gives:
+$$
+\sum_{t=1}^T \lambda(t) \, \mathbb{E}_{\mathbf{x}_t} \left[ \left\| s_\theta(\mathbf{x}_t, t) + \frac{\mathbf{x}_t - \mathbf{x}}{\sigma_t^2} \right\|_2^2 \right]
+$$
+
+which is rewritten as:
+$$
+\sum_{t=1}^T \lambda(t) \, \mathbb{E}_{\mathbf{x}_t} \left[ \left\| s_\theta(\mathbf{x}_t, t) - \frac{\mathbf{x} - \mathbf{x}_t}{\sigma_t^2} \right\|_2^2 \right]
+$$
+## Connecting Denoising Score Matching to DDPMs
+
+We know that:
+$$
+\nabla_{\mathbf{x}_t} \log q(\mathbf{x}_t \mid \mathbf{x}) = -\frac{\mathbf{x}_t - \mathbf{x}}{\sigma_t^2}
+$$
+Assuming the forward noise process:
+$$
+\mathbf{x}_t = \mathbf{x} + \sigma_t \boldsymbol{\epsilon}, \quad \boldsymbol{\epsilon} \sim \mathcal{N}(0, I)
+$$
+We substitute into the gradient:
+$$
+\begin{align*}
+\nabla_{\mathbf{x}_t} \log q(\mathbf{x}_t \mid \mathbf{x})
+&= -\frac{\mathbf{x} + \sigma_t \boldsymbol{\epsilon} - \mathbf{x}}{\sigma_t^2} \\
+&= -\frac{\sigma_t \boldsymbol{\epsilon}}{\sigma_t^2} \\
+&= -\frac{\boldsymbol{\epsilon}}{\sigma_t}
+\end{align*}
+$$
+This shows that the score function is:
+$$
+s_\theta(\mathbf{x}_t, t) = -\frac{\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\sigma_t}
+$$
+### Reformulating the Loss
+
+Starting from the denoising score matching loss:
+$$
+\lambda(t) \, \mathbb{E}_{\mathbf{x}, t} \left[ \left\| s_\theta(\mathbf{x}_t, t) - \frac{\mathbf{x} - \mathbf{x}_t}{\sigma_t^2} \right\|_2^2 \right]
+$$
+Substitute the score identity:
+$$
+s_\theta(\mathbf{x}_t, t) = -\frac{\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\sigma_t}, \quad \frac{\mathbf{x} - \mathbf{x}_t}{\sigma_t^2} = -\frac{\boldsymbol{\epsilon}}{\sigma_t}
+$$
+The loss becomes:
+$$
+\lambda(t) \, \mathbb{E}_{\mathbf{x}, t} \left[ \left\| \frac{\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\sigma_t} - \frac{\boldsymbol{\epsilon}}{\sigma_t} \right\|_2^2 \right]
+= \frac{\lambda(t)}{\sigma_t^2} \, \mathbb{E}_{\mathbf{x}, t} \left[ \left\| \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t) - \boldsymbol{\epsilon} \right\|_2^2 \right]
+$$
+
+From this, we see that this loss function is the mean squared error loss used in DDPMs. We train the model to predict the noise using the ground truth noise as supervision.
+
+So, DDPM training can be interpreted as a special case of denoising score matching when the corruption distribution is Gaussian.
+
+# Conditional Diffusion with Classifier Guidance
+
+An incredibly useful feature of diffusion models is *control*. 
+
+Consider the following scenario: 
+We want to generate images **conditioned on a label** (e.g., “a cat”), but we may not have (image, label) pairs to train a conditional diffusion model.
+
+Instead, we *do* have access to: 
+- A pretrained **unconditional diffusion model** $p_t(x_t)$
+- A classifier $p(y|x_t)$ that tells us how likely the label $y$ is given a noisy image $x_t$. This is not *too* hard to obtain, but there may be some instabilities.
+
+We want to sample from $p_t(\mathbf{x}_t \mid y)$, the distribution of images conditioned on label $y$.  
+We can’t sample from this directly, but we can guide the sampling using the gradient of the log-probability (a **score function**):
+$$
+\nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t \mid y)$$
+Using **Bayes’ rule**, we can decompose this into:
+$$
+\nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t \mid y)
+= \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)
++ \nabla_{\mathbf{x}_t} \log p_t(y \mid \mathbf{x}_t)
+$$
+Where:
+- $\nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)$: score function from the **unconditional diffusion model**.
+- $\nabla_{\mathbf{x}_t} \log p_t(y \mid \mathbf{x}_t)$: gradient from the **classifier** — tells you how to tweak $\mathbf{x}_t$ to make it more likely to be classified as label $y$.
+
+This trick allows us to **guide the diffusion process** toward samples that are consistent with a given label $y$, even without retraining the diffusion model.
+
+# Classifier-Free Guidance
+
+Traditional classifier guidance requires a separately trained classifier to guide the sampling process toward a desired condition (e.g., a class label or text prompt). However, training such a classifier on noisy data is non-trivial and can introduce instability. Classifier-free guidance eliminates this need by modifying the diffusion model itself to enable both conditional and unconditional behaviors.
+
+## Training Procedure
+
+- A single neural network $\epsilon_\theta$ is trained to predict noise from a noisy input $x_t$ at timestep $t$.
+- The model is trained on both:
+  - **Conditional examples**: where conditioning information $y$(e.g., a class label or text embedding) is provided.
+  - **Unconditional examples**: where the conditioning information is dropped (e.g., replaced with a null embedding).
+- During training, the conditioning input is randomly omitted with a fixed probability (e.g., 10%–20%) to ensure the model learns to perform both tasks.
+- Conditioning can be incorporated via input concatenation or cross-attention mechanisms.
+
+## Modified Sampling Distribution
+
+At inference time, the model performs conditional generation by modifying the target distribution as follows:
+
+$$
+\log \tilde{p}_t(\mathbf{x}_t \mid y) \propto \log p_t(\mathbf{x}_t \mid y) + w \log p_t(y \mid \mathbf{x}_t)
+$$
+
+This modification results in an adjusted sampling gradient:
+
+$$
+\nabla_{\mathbf{x}_t} \log \tilde{p}_t(\mathbf{x}_t \mid y)
+= \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)
++ w \left( \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t \mid y)
+- \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t) \right)
+$$
+
+Simplifying:
+
+$$
+= (1 - w) \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)
++ w \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t \mid y)
+$$
+
+This formulation interpolates between the unconditional and conditional scores, with $w \geq 0$ serving as the guidance scale.
+
+With classifier-free guidance, we can simplify the model architecture and training pipeline, and avoid the gradient instability and additional computation overhead of classifier guidance. This method is widely adopted in virtually all text-to-image generators.
+
+# Latent Diffusion Models (LDMs)
+
+Latent Diffusion Models (LDMs) are a class of generative models that apply diffusion processes in a **compressed latent space**, rather than directly on high-dimensional data such as images. This yields substantial computational benefits while preserving generative quality.
+
+## Motivation
+
+Traditional diffusion models operate directly on pixel-space data (e.g., 256x256 RGB images), which leads to high memory and compute requirements due to the dimensionality. Latent Diffusion Models mitigate this by:
+- Encoding images into a **lower-dimensional latent space** using an autoencoder
+- Applying diffusion in that latent space
+- Decoding the denoised latent back into image space
+## Architecture
+
+LDMs consist of three main components:
+### 1. **Autoencoder (Encoder–Decoder Pair)**
+- **Encoder:** Compresses an input image $x$ into a latent representation $z = \mathcal{E}(x)$. 
+- **Decoder**: Reconstructs the image $\tilde{x}$ = $\mathcal{D}(z)$
+- The autoencoder is trained with a perceptual and pixel-wise reconstruction loss, ensuring high-quality reconstructions.
+### 2. **Latent Diffusion Model**
+- A standard diffusion model (e.g., U-Net architecture) is applied in the latent space to learn the distribution $p(z)$.
+- Noise is added to the latent vector over $T$ steps and the model learns to reverse this process.
+### 3. **Conditioning Mechanism (for Text-to-Image Tasks)**
+- Conditioning (e.g., on text prompts) is integrated using **cross-attention** layers between the latent diffusion U-Net and a text encoder (e.g., CLIP or OpenCLIP)
+- This enables controllable generation from text prompts
+### 4. **Discriminator**
+- In some variants, a discriminator is used during training for adversarial regularization to improve the sharpness and realism of reconstructions.
+## **Stable Diffusion**
+
+Stable Diffusion (by Stability AI, LMU Munich, and Runway) is a prominent implementation of latent diffusion, designed for **text-to-image synthesis**. Key design details include:
+
+- **Training Dataset**: LAION-5B (large-scale dataset of image-text pairs scraped from the web)
+- **Text Encoder**: CLIP ViT-L/14, trained to embed text prompts into conditioning vectors
+- **Autoencoder**:
+  - Uses a convolutional VAE-like structure
+  - Latents are typically 1/8 or 1/16 the spatial resolution of the input image
+- **Latent U-Net**: A UNet-based denoising model trained in latent space
+- **Classifier-Free Guidance**: Used during inference to interpolate between conditional and unconditional predictions for stronger text-image alignment
+
+# Summary
+Diffusion models have emerged as a powerful class of generative models, capable of producing high-quality samples across a variety of domains. These models were introduced from two complementary perspectives: the **variational perspective**, which frames diffusion as a latent variable model trained using variational inference, and the **score-based generative modeling** perspective, which focuses on estimating the gradient of the data distribution.
+
+A key strength of diffusion models is their flexibility in **conditional generation**. They can be conditioned on various modalities, such as text or images, to produce outputs that align with a desired specification—enabling applications like text-to-image synthesis, image inpainting, or super-resolution.
+
+Modern implementations, such as **Stable Diffusion**, further enhance efficiency by performing the generative process in the **latent space** of a pretrained autoencoder. This strategy significantly reduces computational cost while maintaining high fidelity, making diffusion models practical for large-scale deployment.
+# Bonus: Discrete Diffusion 
+
+
+## LLaDA (Large Language Diffusion with mAsking)
+
+- Nie et al. (2025) - is the first paper to scale up discrete diffusion models to 8 billion parameters
+
+## Generative modeling principle
+
+**Key claim:** There is nothing inherently better about left-to-right text generation. The key to scalability is maximizing the likelihood of the training data:
+$$\max _ \theta \mathbb{E} _ {x \sim p _ \text{data}} [\log p _ \theta(x)] \iff \min _ \theta \text{KL}(p _ \text{data} (x) \space || \space p _ \theta(x))$$
+
+Autoregressive models factorize the joint probability into product of conditional probabilities.
+
+Discrete diffusion models optimize a lower-bound on likelihood (ELBO).
+ 
+## Challenging the autoregressive framework
+
+**Beyond left-to-right text generation:** Traditional autoregressive models generate text one token at a time, predicting the next token based on a left-to-right context using causal attention. This sequential nature limits flexibility and imposes a strict generation order.
+
+In contrast, discrete diffusion models offer a fundamentally different approach. They allow for any-order token prediction by employing bi-directional attention and perform generation through a series of denoising steps—typically TTT steps for the entire sequence—rather than one step per token.
+
+## Noising Text
+
+- The most popular way to noise text is to mask tokens independently at random
+- Given a text sequence and $t \in (0, 1)$, we can noise it to any intermediate $x_t$
+$$q _ {t | 0}(x_t ^ i | x ^ i _0) = \begin{cases}
+1 - t \space ; \space x_t ^ i = x_0 ^ i \\
+t \space ; \space x _ t ^ i = M
+\end{cases}
+$$
+
+
+Since each token is masked independently, we have that
+$$q_{t | 0}q(\mathbf{x}_t | \mathbf{x}_0) = \prod_{i = 1} ^ L q_{t | 0}(\mathbf{x}_t ^ i | \mathbf{x}_0 ^ i)$$
+## Denoising Text
+
+The key idea when denoising text is to optimize the likelihood of the training data. In diffusion models, we don't have access to the likelihood. So, instead we optimize the likelihood lower-bound (ELBO).
+
+$$
+\mathbb{E}_{p_{\text{data}}(\mathbf{x}_0)}[\log p_\theta(\mathbf{x}_0)] \leq - \mathbb{E}_{t, \mathbf{x}_0, \mathbf{x}_t} \left[ \frac{1}{t} \sum_{i=1}^L \mathbb{1}\{\mathbf{x}_t^i = \text{M}\} \log p_\theta(\mathbf{x}_0^i \mid \mathbf{x}_t) \right]
+$$
+For masked diffusion models, the ELBO has a very intuitive form:
+- Given a partially masked sequence, the model predicts all marked tokens simultaneously
+- The ELBO computes the likelihood only on the masked tokens
+
+## Generating Text
+
+The key idea is to predict the original text, then add back "noise".
+
+Given a partially/fully masked sequence $\mathbf{x}_t$, we want to generate $\mathbf{x}_s$.
+1. Run the discrete diffusion model to simultaneously predict all of the masked tokens
+2. For each of the masked tokens, remark them with probability $\frac{s}{t}$.
+
+Repeat this process until you generate $\mathbf{x}_0$, the unmasked text.
+
+## Implementation Details: Inference
+
+LLaDA applies semi-autoregressive sampling, which works as follows:
+1. The sequence is divided into blocks, generated from left-to-right
+2. Within each block, apply LLaDA to unmask/generate
+
+
+# References 
+
+Cornell University. (2025). _Diffusion Models II_ [Lecture slides]. CS 4782: Deep Learning. [https://www.cs.cornell.edu/courses/cs4782/2025sp/slides/pdf/week9_2_slides.pdf](https://www.cs.cornell.edu/courses/cs4782/2025sp/slides/pdf/week9_2_slides.pdf)
+
+Krishna, R. (2023). _Lecture 15: Vision and Language_ [Lecture slides]. CS231n: Deep Learning for Computer Vision. Stanford University. [https://cs231n.stanford.edu/slides/2023/lecture_15.pdf](https://cs231n.stanford.edu/slides/2023/lecture_15.pdf)
+    
+Luo, C. (2022). _Understanding diffusion models: A unified perspective_ (arXiv:2208.11970). arXiv. [https://arxiv.org/pdf/2208.11970](https://arxiv.org/pdf/2208.11970)
