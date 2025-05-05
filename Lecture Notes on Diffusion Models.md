@@ -42,6 +42,8 @@ In diffusion models, noise schedules determine how much Gaussian noise is added 
 
 In doing so, the noise schedule defines **how quickly or slowly** this corruption happens.
 
+A popular noise schedule is the cosine schedule, defined as 
+$$\bar{\alpha_t} = \cos{(0.5\pi t/T)^2}$$
 ## Reverse Process
 The forward process adds noise step-by-step to get $x_T$. It destroys the original image $x_0$. To be able to generate new data, we need to build a model that reconstructs data starting from pure noise. 
 
