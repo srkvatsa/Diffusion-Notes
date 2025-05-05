@@ -272,7 +272,7 @@ L_{t-1}
 $$
 This is actually quite interpretable. We train by taking the mean squared error between the learned and true noise at each step!
 
-# Implementation Considerations: Network Architectures
+# Architecture
 
 Diffusion models typically use a U-Net backbone with ResNet blocks and self-attention to implement the noise-prediction network $\epsilon_\theta(x_t, t)$. You may recall the U-Net architecture from our lecture on Modern Vision Networks.
 ### U-Net Structure  
@@ -294,5 +294,55 @@ Diffusion models have the consideration of time *t* that needs to be preserved a
 Within the U-Net, we place self-attention layers at one or more resolutions (often in high level feature maps) to help model global correlations.
 
 The aforementioned architecture is defined in **Ho et al. (NeurIPS 2020)** , who proposed the original DDPM U-Net, and **Dhariwal & Nichol (NeurIPS 2021)**, who made crucial improvements. 
+
+
+# Training
+
+We are now equipped to discuss the procedure for training a diffusion model. 
+We'll be using the "one-step" forward process equation: 
+
+$$
+x_t = \sqrt{\bar{\alpha}_t} x_0 + \sqrt{1 - \bar{\alpha}_t} \epsilon, \quad \epsilon \sim \mathcal{N}(0, I)
+$$
+
+Recall that $\bar{\alpha}_t$ is a product of noise schedule terms and controls how much of the original image remains vs. how much noise is added and $\epsilon$ is sampled from a standard normal distribution (i.e., random Gaussian noise).
+## Training Algorithm (Repeat Until Convergence)
+
+#### Step 1: Sample clean image
+
+$$
+\mathbf{x}_0 \sim q(\mathbf{x}_0)
+$$
+
+- Sample a **clean image** $x_0$ from the training data distribution $q$.
+- This is the starting point of the forward process.
+#### Step 2: Sample time step
+
+$$
+t \sim U\{1, 2, \dots, T\}
+$$
+
+- Choose a **random time step** $t$ uniformly from all possible time steps $1$ to $T$.
+- This ensures the model learns to denoise at every possible stage of the forward process, from slightly noisy to very noisy.
+
+#### Step 3: Sample Gaussian noise
+
+$$
+\epsilon \sim \mathcal{N}(0, 1)
+$$
+
+- Sample Gaussian noise to be added to the image.
+- This noise is used in the forward process to get $x_t$, and later used to compute the loss by comparing it to the model's prediction.
+#### Step 4: Optimizer step on loss
+
+As we previously derived, our objective is
+
+$$
+L(\theta) = \mathbb{E}_{t, x_0, \epsilon} \left[ \| \epsilon - \epsilon_\theta(x_t, t) \|^2 \right]
+$$
+
+- The model $\epsilon_\theta(x_t, t)$ is trained to **predict the noise** $\epsilon$ that was added to get from $x_0$ to $x_t$.
+- This is a **mean squared error (MSE)** loss between the true noise and the predicted noise.
+- The optimizer (e.g., Adam) updates the model parameters $\theta$ accordingly.
 
 
